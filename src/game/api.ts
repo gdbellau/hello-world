@@ -19,6 +19,8 @@ function saveToken(t: string): void {
 }
 
 let token = loadToken();
+/** Replaces the session token (account sign-in/out). Callers reload afterwards. */
+export function setToken(t: string): void { token = t; saveToken(t); }
 /** False when the API is unreachable (e.g. `vite dev` without the Worker). */
 export let online = true;
 
