@@ -42,7 +42,7 @@ export const publicRoutes: Route[] = [
     path: "/api/me",
     async handler({ req, env }) {
       const id = await requirePlayer(req, env);
-      const player = await env.DB.prepare("SELECT id, corp_name, credits, created_at FROM players WHERE id = ?1").bind(id).first();
+      const player = await env.DB.prepare("SELECT id, corp_name, credits, created_at, email FROM players WHERE id = ?1").bind(id).first();
       const { results } = await env.DB.prepare(
         "SELECT entitlement FROM entitlements WHERE player_id = ?1 AND revoked_at IS NULL",
       ).bind(id).all<{ entitlement: string }>();

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { _resetJwksCache, verifyAccessJwt } from "../worker/access";
-import { hmacSha256Hex, signPlayerToken, verifyPlayerToken } from "../worker/crypto";
+import { hmacSha256Hex, signPlayerToken, verifyPlayerToken, verifyPlayerTokenClaims } from "../worker/crypto";
 import { verifyStripeSignature } from "../worker/stripe";
 
 const b64url = (b: ArrayBuffer | Uint8Array) =>
@@ -13,6 +13,28 @@ describe("player tokens", () => {
     expect(await verifyPlayerToken("other", t)).toBeNull();
     expect(await verifyPlayerToken("s3cret", t.replace("abc", "abd"))).toBeNull();
     expect(await verifyPlayerToken("s3cret", "garbage")).toBeNull();
+  });
+
+  it("keeps the legacy (version 0) format so existing tokens stay valid", async () => {
+    const legacy = `abc-123.${await hmacSha256Hex("s3cret", "player:abc-123")}`;
+    expect(await signPlayerToken("s3cret", "abc-123")).toBe(legacy);
+    expect(await verifyPlayerTokenClaims("s3cret", legacy)).toEqual({ id: "abc-123", version: 0 });
+  });
+
+  it("binds the version into the signature", async () => {
+    const t = await signPlayerToken("s3cret", "abc-123", 3);
+    expect(t.split(".")).toHaveLength(3);
+    expect(await verifyPlayerTokenClaims("s3cret", t)).toEqual({ id: "abc-123", version: 3 });
+    expect(await verifyPlayerToken("s3cret", t)).toBe("abc-123");
+    // Changing the version (e.g. to resurrect a pre-logout token) breaks the signature.
+    const [id, , sig] = t.split(".");
+    expect(await verifyPlayerTokenClaims("s3cret", `${id}.4.${sig}`)).toBeNull();
+    expect(await verifyPlayerTokenClaims("s3cret", `${id}.0.${sig}`)).toBeNull();
+    expect(await verifyPlayerTokenClaims("s3cret", `${id}.03.${sig}`)).toBeNull();
+    // A versioned signature can't be replayed as a legacy token and vice versa.
+    expect(await verifyPlayerTokenClaims("s3cret", `${id}.${sig}`)).toBeNull();
+    expect(await verifyPlayerTokenClaims("s3cret", "a.b.c.d")).toBeNull();
+    expect(await verifyPlayerTokenClaims("s3cret", `.1.${sig}`)).toBeNull();
   });
 });
 
