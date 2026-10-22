@@ -96,7 +96,7 @@ export class Rain {
       d.y += d.s * dt;
       d.x -= d.s * 0.18 * dt;
       if (d.y > h + 20 || d.x < -20) {
-        if (this.r() < 0.5 && this.splashes.length < 60) this.splashes.push({ x: d.x, y: Math.min(h, d.y - this.r() * h * 0.6), t: 0 });
+        if (this.r() < 0.5 && this.splashes.length < 60) this.splashes.push({ x: d.x, y: h * (0.45 + this.r() * 0.55), t: 0 });
         Object.assign(d, this.spawn(w, h, false));
       }
     }

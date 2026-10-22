@@ -116,6 +116,25 @@ function bloodDecal(seed: number): Canvas2D {
   return c;
 }
 
+let scorchCache: Canvas2D | null = null;
+function scorchDecal(): Canvas2D {
+  if (scorchCache) return scorchCache;
+  const r = rng(4242);
+  const c = makeCanvas(40, 20);
+  const g = ctx2d(c);
+  for (let k = 0; k < 260; k++) {
+    const a = r() * Math.PI * 2;
+    const d = Math.sqrt(r()) * 19;
+    const x = 20 + Math.cos(a) * d;
+    const y = 10 + Math.sin(a) * d * 0.5;
+    g.fillStyle = d < 9 ? "#050408" : d < 15 ? "#100c18" : "#1c1626";
+    g.globalAlpha = d < 15 ? 0.9 : 0.5;
+    g.fillRect(Math.round(x), Math.round(y), 1, 1);
+  }
+  scorchCache = c;
+  return c;
+}
+
 export class Fx {
   particles: Particle[] = [];
   flashes: Flash[] = [];
@@ -151,6 +170,11 @@ export class Fx {
 
   slash(x: number, y: number, color: string): void {
     this.slashes.push({ x, y, a: this.rand() * Math.PI, color, life: 0.35, max: 0.35 });
+  }
+
+  /** Dark blast mark on the floor. */
+  scorch(x: number, y: number): void {
+    this.decals.push({ x, y, c: scorchDecal() });
   }
 
   decal(x: number, y: number, seed: number): void {
@@ -241,7 +265,17 @@ export class Fx {
     ctx.globalAlpha = 1;
     for (const f of this.flashes) {
       const k = f.life / f.max;
-      drawGlow(ctx, f.color, f.x, f.y, f.r * (0.7 + 0.3 * k), f.r * (0.7 + 0.3 * k) * 0.8, k);
+      const r = f.r * (0.7 + 0.3 * k);
+      drawGlow(ctx, f.color, f.x, f.y, r, r * 0.8, k);
+      // Hot core + a pixel star for the first half of the flash.
+      drawGlow(ctx, "#ffffff", f.x, f.y, r * 0.35, r * 0.3, k * 0.9);
+      if (k > 0.5) {
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "#ffffff";
+        const s = Math.max(2, Math.round(f.r / 10)) * 2;
+        ctx.fillRect(Math.round(f.x - s), Math.round(f.y - 1), s * 2, 2);
+        ctx.fillRect(Math.round(f.x - 1), Math.round(f.y - s / 2), 2, s);
+      }
     }
     for (const r of this.rings) {
       const k = 1 - r.life / r.max;

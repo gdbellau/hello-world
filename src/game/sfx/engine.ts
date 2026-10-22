@@ -37,7 +37,15 @@ export function engine(): Engine | null {
     comp.ratio.value = 4;
     comp.attack.value = 0.004;
     comp.release.value = 0.2;
-    comp.connect(ctx.destination);
+    // Brick-wall-ish limiter after the glue compressor so stacked SFX never clip.
+    const limit = ctx.createDynamicsCompressor();
+    limit.threshold.value = -3;
+    limit.knee.value = 0;
+    limit.ratio.value = 20;
+    limit.attack.value = 0.001;
+    limit.release.value = 0.1;
+    comp.connect(limit);
+    limit.connect(ctx.destination);
     const master = ctx.createGain();
     master.connect(comp);
     const music = ctx.createGain();

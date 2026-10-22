@@ -197,7 +197,7 @@ function onShot(sim: Sim, st: State, s: Shot, t: number, q: number): void {
   st.tracers.push({ ax: mx, ay: my, bx, by, hostile: s.hostile, life: 0.1 });
   const fx = st.fx;
   const silenced = !s.hostile && shooter?.cls === "ghost";
-  fx.flash(mx, my, silenced ? 16 : s.hostile ? 34 : 26, s.hostile ? "#ffb070" : "#bff8ff", 0.07);
+  fx.flash(mx, my, silenced ? 20 : s.hostile ? 40 : 32, s.hostile ? "#ffb070" : "#bff8ff", 0.08);
   if (q > 0) {
     fx.burst(mx, my, 0, silenced ? 2 : 5, { color: s.hostile ? ["#ffe14d", "#ff8a1f"] : ["#ffffff", "#00f0ff"], speed: 120, life: 0.12, grav: 0, add: true });
     fx.burst(bx, to.y, to.y - by, 6, { color: s.hostile ? ["#ff3b5c", "#ffb070", "#ffe14d"] : ["#00f0ff", "#ffffff"], speed: 90, up: 80, life: 0.3, grav: 400, add: true });
@@ -249,7 +249,9 @@ function handleEvent(sim: Sim, st: State, ev: FxEvent): void {
     case "explosion": {
       const s = worldToScreen(ev.at.x, ev.at.y);
       const r = (ev.radius ?? 1.5) * 40;
-      fx.flash(s.x, s.y - 10, r * 2, "#ffb070", 0.25);
+      fx.flash(s.x, s.y - 10, r * 2.4, "#ff8a1f", 0.35);
+      fx.flash(s.x, s.y - 14, r * 1.2, "#ffe14d", 0.2);
+      fx.scorch(s.x, s.y);
       fx.burst(s.x, s.y, 6, 40, { color: ["#ffe14d", "#ff8a1f", "#ff3b5c", "#ffffff"], speed: r * 4, up: 200, life: 0.7, grav: 350, add: true, size: 1.5 });
       fx.burst(s.x, s.y, 10, 16, { color: ["#2a2440", "#3a3456", "#1a1830"], speed: r * 1.5, up: 60, life: 1.4, grav: -30, size: 3 });
       fx.ring(s.x, s.y, 10, r * 1.6, "#ffb070", 0.4);
@@ -343,6 +345,30 @@ export function render(ctx: CanvasRenderingContext2D, sim: Sim, cam: Camera, rs:
     ctx.fillRect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0);
     ctx.strokeRect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0);
   }
+}
+
+const menuRain = new Rain();
+let menuLast = 0;
+
+/**
+ * Optional: animated city backdrop (skyline, rain, CRT overlay) for screens
+ * without a mission, e.g. the title/HQ modal. Call each frame with seconds.
+ */
+export function renderAmbient(ctx: CanvasRenderingContext2D, t: number, quality = 2): void {
+  const dpr = window.devicePixelRatio || 1;
+  const w = ctx.canvas.width / dpr;
+  const h = ctx.canvas.height / dpr;
+  const dt = Math.max(0, Math.min(0.1, t - menuLast));
+  menuLast = t;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = "source-over";
+  drawBackdrop(ctx, w, h, quality);
+  if (quality >= 2) {
+    menuRain.update(dt, w, h, 140);
+    menuRain.draw(ctx);
+  }
+  if (quality > 0) drawCrtOverlay(ctx, w, h, true);
 }
 
 function drawFloor(ctx: CanvasRenderingContext2D, bake: WorldBake, v: { x0: number; y0: number; x1: number; y1: number }): void {
