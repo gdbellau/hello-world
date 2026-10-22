@@ -21,7 +21,7 @@ Cloudflare free tier.
 | `src/game/gfx/`, `src/game/sfx/` | Procedural pixel-art sprites, skins, lighting and FX; WebAudio synthwave and SFX |
 | `src/game/store.ts`, `account.ts` | In-game store (Stripe Checkout) and email magic-link accounts |
 | `src/admin/`, `admin/` | Ops console: dashboard charts, players, all settings (import/export), products, audit log, system health |
-| `shared/settings/` | Schema for **every** tunable value (about 150 settings), shared by the game, Worker and admin |
+| `shared/settings/` | Schema for **every** tunable value (180 settings), shared by the game, Worker and admin |
 | `shared/corp/` | Corp rules shared by client and server: classes, augments, R&D tree, XP, rewards, world map |
 | `worker/` | Cloudflare Worker: one route module per area, Access-JWT-protected admin API, Stripe webhooks, nightly cron |
 | `migrations/` | D1 schema (0001–0005) |
