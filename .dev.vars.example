@@ -5,3 +5,9 @@ DEV_ADMIN_EMAIL=you@example.com
 # Stripe test-mode keys (optional locally)
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
+# Resend (optional locally). Leave both empty and sign-in links are printed to the
+# wrangler log and, on localhost only, returned to the client as `devLink`.
+RESEND_API_KEY=
+EMAIL_FROM=
+# Optional: canonical origin used in emailed links (defaults to the request origin).
+# APP_ORIGIN=https://thecabal.example
