@@ -4,25 +4,26 @@ export const NEON_TOWER: MissionSource = {
   id: "neon-tower-01",
   type: "assassination",
   name: "Neon Tower: Board Seat",
+  targetName: "CFO M. VANCE",
   brief:
-    "Arasaka-Vance's CFO is closing a merger tonight. Eliminate her before the ink dries, then extract via the east service lift.",
+    "Arasaka-Vance's CFO is closing a merger tonight in the 88th-floor strongroom. Eliminate her before the ink dries, then extract via the east service lift. A lobby camera watches the strongroom and a turret guards her desk; the maintenance node by the south hall can blind both.",
   ascii: `
 ##############################
-#AA.........#.......c.......E#
-#AA.........#.......c.......E#
+#AA...C.....#.......c......EE#
+#AA.........#.......c......EE#
 #...cc......#...1........1...#
 #...........#................#
 #.......2...######..##########
-#............................#
+#...........................R#
 #....2......c.......c........#
 #######..######.........3....#
-#.........#.....######.......#
-#.........#.....#....#...3...#
+#.........#.....######V......#
+#..C......#.....#U...#...3...#
 #....4....#.....#..T.#.......#
 #.........#.....#....#.......#
 #.......4.......##..##.......#
-#..c......#..................#
-#..c......#.....5........5...#
+#..c......#.K................#
+#..c......#.....5........5..R#
 ##############################
 `,
 };
