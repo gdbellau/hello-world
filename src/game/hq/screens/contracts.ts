@@ -166,7 +166,7 @@ export function renderLoadout(main: HTMLElement, arg: unknown): void {
           h("li", null, h("b", null, "Left-click / drag"), " select agents · ", h("b", null, "1-6"), " pick agent · ", h("b", null, "Ctrl+A"), " all"),
           h("li", null, h("b", null, "Right-click"), " move · ", h("b", null, "Right-click enemy"), " attack · ", h("b", null, "Right-click terminal / door / package"), " interact"),
           h("li", null, "Reach an unaware enemy for a ", h("b", null, "silent takedown"), ". Gunfire draws guards; a wounded guard sounds the alarm."),
-          h("li", null, h("b", null, "Space"), " pause · ", h("b", null, "WASD / arrows"), " pan camera"),
+          h("li", null, h("b", null, "Space"), " pause · ", h("b", null, "WASD / arrows"), " pan camera · ", h("b", null, "M"), " mute"),
         ),
       ),
       h(

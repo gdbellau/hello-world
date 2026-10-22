@@ -3,6 +3,7 @@
 // missions workstream so render.ts (owned by art) doesn't need to change for
 // new kinds. render.ts depth-sorts entities and calls drawObject for these.
 
+import { drawCharacter } from "./gfx/sprites";
 import { TILE_H, TILE_W, worldToScreen, type Vec } from "./iso";
 import { Tile } from "./map";
 import type { Entity, Sim } from "./sim";
@@ -458,34 +459,16 @@ function drawPackage(ctx: CanvasRenderingContext2D, sim: Sim, e: Entity, t: numb
 
 function drawCivilian(ctx: CanvasRenderingContext2D, _sim: Sim, e: Entity, t: number): void {
   const s = worldToScreen(e.pos.x, e.pos.y);
-  if (e.hp <= 0) {
-    ctx.fillStyle = "rgba(120,0,30,0.6)";
-    ctx.beginPath();
-    ctx.ellipse(s.x, s.y, 13, 6, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#4a4560";
-    ctx.fillRect(s.x - 9, s.y - 4, 18, 5);
-    return;
-  }
+  // Same pixel-art pipeline as agents and guards (gfx/sprites "civilian" archetype).
+  const moving = e.path.length > 0;
   const panicked = e.panic !== undefined;
-  shadow(ctx, s.x, s.y, 11, 5.5);
-  const bob = e.path.length ? Math.sin(t * (panicked ? 22 : 10) + e.id) * 1.5 : 0;
-  ctx.save();
-  ctx.fillStyle = "#1a1730";
-  ctx.strokeStyle = panicked ? "#ffb26b" : C.civilian;
-  ctx.lineWidth = 1.5;
-  ctx.globalAlpha = 0.9;
-  ctx.beginPath();
-  ctx.roundRect(s.x - 6, s.y - 26 + bob, 12, 22, 5);
-  ctx.fill();
-  ctx.stroke();
-  // Head.
-  ctx.beginPath();
-  ctx.arc(s.x, s.y - 29 + bob, 3.5, 0, Math.PI * 2);
-  ctx.fillStyle = panicked ? "#ffb26b" : C.civilian;
-  ctx.fill();
-  ctx.restore();
-  ctx.lineWidth = 1;
+  drawCharacter(ctx, s.x, s.y, {
+    arch: "civilian",
+    facing: e.facing,
+    pose: e.hp <= 0 ? "dead" : moving ? "walk" : "idle",
+    frame: Math.floor(t * (panicked ? 14 : 8) + e.id) % 4,
+  });
+  if (e.hp <= 0) return;
   if (panicked) {
     const calling = !e.reported;
     ctx.font = "bold 13px monospace";

@@ -30,7 +30,7 @@
     radial-gradient(900px 500px at -10% 110%, rgba(0, 240, 255, 0.12), transparent 60%),
     linear-gradient(rgba(43, 35, 112, 0.18) 1px, transparent 1px) 0 0 / 100% 32px,
     linear-gradient(90deg, rgba(43, 35, 112, 0.18) 1px, transparent 1px) 0 0 / 64px 100%,
-    var(--bg);
+    rgba(7, 6, 26, 0.78); /* lets the animated skyline on the canvas show through */
 }
 #screen[hidden] {
   display: none;

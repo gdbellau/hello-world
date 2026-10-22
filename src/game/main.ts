@@ -2,10 +2,10 @@ import "./style.css";
 import type { SettingsMap } from "../../shared/settings";
 import { completeRun, loadConfig, online, startSession, type AgentRunResult, type RunResult } from "./api";
 import { initAccountFlow } from "./account";
-import { sfx } from "./audio";
+import { sfx, toggleMute } from "./audio";
 import { initFlow, setMissionMusic, showDebrief, type LaunchRequest } from "./hq/flow";
 import { dist, screenToWorld, worldToScreen, type Vec } from "./iso";
-import { render, type Camera, type RenderState } from "./render";
+import { render, renderAmbient, renderFx, type Camera, type RenderState } from "./render";
 import { Sim } from "./sim";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#view")!;
@@ -105,6 +105,8 @@ addEventListener("mouseup", (ev) => {
 
 addEventListener("keydown", (ev) => {
   keys.add(ev.key.toLowerCase());
+  // M toggles all audio, on any screen (but not while typing in a field).
+  if (ev.key.toLowerCase() === "m" && !(ev.target instanceof HTMLInputElement || ev.target instanceof HTMLTextAreaElement)) toggleMute();
   if (!sim) return;
   if (ev.code === "Space") {
     ev.preventDefault();
@@ -188,15 +190,45 @@ const squadEntities = (s: Sim) => s.entities.filter((e) => e.kind === "agent");
 
 function drainEvents(s: Sim): void {
   for (const ev of s.events.splice(0)) {
-    if (ev.type === "shot") sfx(ev.hostile ? "shot_hostile" : "shot");
-    else if (ev.type === "takedown") sfx("takedown");
-    else if (ev.type === "detect") sfx("detect");
-    else if (ev.type === "alarm") {
-      sfx("alarm");
-      setMissionMusic("combat");
-    } else if (ev.type === "hack") sfx("hack");
-    else if (ev.type === "outcome") sfx(ev.outcome);
-    else if (ev.type === "death" && ev.kind !== "agent") creditKill(s, ev.id);
+    renderFx(ev);
+    switch (ev.type) {
+      case "shot":
+        sfx(ev.hostile ? "shot_hostile" : "shot");
+        break;
+      case "takedown":
+        sfx("takedown");
+        break;
+      case "detect":
+      case "suspicious":
+        sfx("detect");
+        break;
+      case "alarm":
+        sfx("alarm");
+        setMissionMusic("combat");
+        break;
+      case "reinforcements":
+        sfx("alarm");
+        renderFx({ type: "shake", amount: 4 });
+        break;
+      case "hack":
+      case "door":
+        sfx("hack");
+        break;
+      case "pickup":
+      case "drop":
+        sfx("select");
+        break;
+      case "disabled":
+        sfx("explosion");
+        break;
+      case "outcome":
+        sfx(ev.outcome);
+        break;
+      case "death":
+        sfx("death");
+        if (ev.kind !== "agent") creditKill(s, ev.id);
+        break;
+    }
   }
 }
 
@@ -326,6 +358,9 @@ async function boot(): Promise<void> {
       for (const id of rs.selected) if ((sim.byId(id)?.hp ?? 0) <= 0) rs.selected.delete(id);
       updateHud();
       if (sim.outcome) void finish();
+    } else {
+      // Animated skyline behind the HQ screens (which are translucent over the canvas).
+      renderAmbient(ctx, now / 1000, Number(cfg.graphics_quality ?? 2));
     }
     requestAnimationFrame(frame);
   };
