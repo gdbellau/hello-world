@@ -15,12 +15,17 @@ Cloudflare free tier.
 
 | Path | What |
 |---|---|
-| `src/game/` | Game client: Canvas 2D isometric renderer, A* pathfinding, guard vision cones, stealth/alarm sim, HUD |
-| `src/admin/`, `admin/` | Admin panel: stats, every setting, product catalog, audit log |
-| `shared/settings.ts` | Schema for **all** tunable settings, shared by the game, Worker and admin |
-| `worker/` | Cloudflare Worker: public API, Access-JWT-protected admin API, Stripe Checkout and webhook |
-| `migrations/` | D1 schema |
-| `test/` | Vitest unit tests (sim, settings, JWT/Stripe/token verification) |
+| `src/game/` | Game client: sim (stealth AI, cameras, turrets, hacking, civilians), Canvas 2D isometric renderer |
+| `src/game/missions/` | 6 contracts (assassination / espionage / research theft) authored as ASCII maps |
+| `src/game/hq/` | Corp meta-game screens: HQ board, roster, recruit, cyberware, R&D, world map, loadout, debrief |
+| `src/game/gfx/`, `src/game/sfx/` | Procedural pixel-art sprites, skins, lighting and FX; WebAudio synthwave and SFX |
+| `src/game/store.ts`, `account.ts` | In-game store (Stripe Checkout) and email magic-link accounts |
+| `src/admin/`, `admin/` | Ops console: dashboard charts, players, all settings (import/export), products, audit log, system health |
+| `shared/settings/` | Schema for **every** tunable value (about 150 settings), shared by the game, Worker and admin |
+| `shared/corp/` | Corp rules shared by client and server: classes, augments, R&D tree, XP, rewards, world map |
+| `worker/` | Cloudflare Worker: one route module per area, Access-JWT-protected admin API, Stripe webhooks, nightly cron |
+| `migrations/` | D1 schema (0001–0005) |
+| `test/` | Vitest unit tests (128): sim, missions, corp rules, settings, accounts, store, admin, security |
 
 ## Quick start
 
@@ -38,11 +43,13 @@ npm test
 ## Controls
 
 - **Left-click / drag:** select agents
-- **1–4:** select an agent
+- **1–6:** select an agent
 - **Ctrl+A:** select all agents
 - **Right-click:** move
 - **Right-click an enemy:** attack
+- **Right-click a terminal, door or package:** hack it or pick it up
 - **Space:** pause
 - **WASD / arrows:** pan the camera
+- **M:** mute
 
-Reach an unaware enemy to perform a silent takedown. Gunfire raises the alarm.
+Reach an unaware enemy to perform a silent takedown. Gunfire draws guards, and a wounded guard sounds the alarm.
