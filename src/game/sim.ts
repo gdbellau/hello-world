@@ -58,6 +58,20 @@ export interface Shot {
 
 export type Outcome = "win" | "loss" | null;
 
+/**
+ * Things the presentation layer reacts to (sound, screen shake, HUD flashes).
+ * The sim pushes; main.ts drains the queue once per frame.
+ */
+export type SimEvent =
+  | { type: "shot"; from: Vec; hostile: boolean }
+  | { type: "takedown"; at: Vec }
+  | { type: "death"; id: number; kind: Kind }
+  | { type: "detect"; guardId: number }
+  | { type: "alarm" }
+  | { type: "hack"; at: Vec }
+  | { type: "objective" }
+  | { type: "outcome"; outcome: "win" | "loss" };
+
 const DEFAULT_SQUAD: { name: string; cls: AgentClass }[] = [
   { name: "VIPER", cls: "razor" },
   { name: "GHOST", cls: "ghost" },
@@ -86,6 +100,8 @@ export class Sim {
   time = 0;
   alarm = false;
   outcome: Outcome = null;
+  outcomeReason = "";
+  readonly events: SimEvent[] = [];
   private nextId = 1;
 
   constructor(
@@ -208,6 +224,23 @@ export class Sim {
     }
   }
 
+  raiseAlarm(): void {
+    if (this.alarm) return;
+    this.alarm = true;
+    this.events.push({ type: "alarm" });
+  }
+
+  /** Short HUD line describing what the player should do next. */
+  objectiveText(): string {
+    return this.target.hp > 0 ? "ELIMINATE THE TARGET" : "TARGET DOWN. EXTRACT ALL AGENTS (GREEN ZONE)";
+  }
+
+  private end(outcome: "win" | "loss", reason: string): void {
+    this.outcome = outcome;
+    this.outcomeReason = reason;
+    this.events.push({ type: "outcome", outcome });
+  }
+
   canSee(a: Vec, b: Vec, range: number): boolean {
     return dist(a, b) <= range && this.map.lineOfSight(a, b);
   }
@@ -216,8 +249,11 @@ export class Sim {
     from.facing = Math.atan2(to.pos.y - from.pos.y, to.pos.x - from.pos.x);
     from.cooldown = cooldown;
     this.shots.push({ from: { ...from.pos }, to: { ...to.pos }, ttl: 0.12, hostile });
+    this.events.push({ type: "shot", from: { ...from.pos }, hostile });
+    const wasAlive = to.hp > 0;
     to.hp = Math.max(0, to.hp - damage);
-    this.alarm = true; // gunfire is loud
+    if (wasAlive && to.hp === 0) this.events.push({ type: "death", id: to.id, kind: to.kind });
+    this.raiseAlarm(); // gunfire is loud
   }
 
   private updateAgent(e: Entity, dt: number): void {
@@ -230,6 +266,8 @@ export class Sim {
       // Silent takedown: reach an unaware target in melee range.
       if (!this.alarm && d <= MELEE_RANGE) {
         ordered.hp = 0;
+        this.events.push({ type: "takedown", at: { ...ordered.pos } });
+        this.events.push({ type: "death", id: ordered.id, kind: ordered.kind });
         e.attackId = undefined;
         e.path = [];
         return;
@@ -281,12 +319,14 @@ export class Sim {
       // Stealthier agents fill the detection meter more slowly.
       const seen = this.agents.filter((a) => this.inVisionCone(g, a.pos));
       const rate = seen.length ? Math.max(...seen.map((a) => 1 / (a.stealthMul ?? 1))) : 0;
-      g.detect = rate ? (g.detect ?? 0) + dt * rate : Math.max(0, (g.detect ?? 0) - dt * 0.5);
-      if (g.detect >= Number(this.cfg.detection_time)) this.alarm = true;
+      const before = g.detect ?? 0;
+      g.detect = rate ? before + dt * rate : Math.max(0, before - dt * 0.5);
+      if (before === 0 && g.detect > 0) this.events.push({ type: "detect", guardId: g.id });
+      if (g.detect >= Number(this.cfg.detection_time)) this.raiseAlarm();
       // Bodies on the floor in view also trip the alarm.
       if (this.hostiles.length < this.entities.filter((e) => e.kind !== "agent").length) {
         const body = this.entities.find((e) => e.kind !== "agent" && e.hp <= 0 && this.inVisionCone(g, e.pos));
-        if (body) this.alarm = true;
+        if (body) this.raiseAlarm();
       }
       this.patrol(g, dt);
       return;
@@ -346,18 +386,14 @@ export class Sim {
 
   private checkOutcome(): void {
     const agents = this.agents;
-    if (!agents.length) {
-      this.outcome = "loss";
-      return;
-    }
+    if (!agents.length) return this.end("loss", "Your squad was eliminated.");
     const t = this.target;
     // The target escaping through the extraction point is a failure.
     if (t.hp > 0 && this.map.get(Math.floor(t.pos.x), Math.floor(t.pos.y)) === Tile.Extract) {
-      this.outcome = "loss";
-      return;
+      return this.end("loss", "The target escaped.");
     }
     if (t.hp <= 0 && agents.every((a) => this.map.get(Math.floor(a.pos.x), Math.floor(a.pos.y)) === Tile.Extract)) {
-      this.outcome = "win";
+      this.end("win", "Target eliminated and squad extracted.");
     }
   }
 }

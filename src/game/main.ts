@@ -1,5 +1,6 @@
 import "./style.css";
 import { completeMission, loadConfig, online, startMission, startSession, type Me } from "./api";
+import { sfx } from "./audio";
 import { screenToWorld, worldToScreen, type Vec } from "./iso";
 import { loadMission, MISSION_SOURCES } from "./missions";
 import { render, type Camera, type RenderState } from "./render";
@@ -132,9 +133,7 @@ function fmtTime(s: number): string {
 
 function updateHud(): void {
   if (!sim) return;
-  const t = sim.target;
-  $("#objective").textContent =
-    t.hp > 0 ? "◆ ELIMINATE THE TARGET" : "◆ TARGET DOWN. EXTRACT ALL AGENTS (GREEN ZONE)";
+  $("#objective").textContent = `◆ ${sim.objectiveText()}`;
   const alarm = $("#alarm");
   alarm.textContent = sim.alarm ? "ALARM" : "UNDETECTED";
   alarm.className = sim.alarm ? "pill red" : "pill green";
@@ -181,6 +180,17 @@ function showModal(html: string, actions: { label: string; onClick: () => void }
   m.hidden = false;
 }
 
+function drainEvents(s: Sim): void {
+  for (const ev of s.events.splice(0)) {
+    if (ev.type === "shot") sfx(ev.hostile ? "shot_hostile" : "shot");
+    else if (ev.type === "takedown") sfx("takedown");
+    else if (ev.type === "detect") sfx("detect");
+    else if (ev.type === "alarm") sfx("alarm");
+    else if (ev.type === "hack") sfx("hack");
+    else if (ev.type === "outcome") sfx(ev.outcome);
+  }
+}
+
 // --- Game flow --------------------------------------------------------------
 
 async function deploy(cfg: Awaited<ReturnType<typeof loadConfig>>): Promise<void> {
@@ -207,7 +217,7 @@ async function finish(cfg: Awaited<ReturnType<typeof loadConfig>>): Promise<void
   showModal(
     outcome === "win"
       ? `<h1 class="win">CONTRACT FULFILLED</h1><p>Mission time ${fmtTime(sim.time)}.${stealth ? " No alarms raised." : ""}</p>${reward}`
-      : `<h1 class="loss">CONTRACT FAILED</h1><p>${sim.agents.length ? "The target escaped." : "Your squad was eliminated."}</p>`,
+      : `<h1 class="loss">CONTRACT FAILED</h1><p>${sim.outcomeReason}</p>`,
     [{ label: "REDEPLOY", onClick: () => void deploy(cfg) }],
   );
 }
@@ -245,6 +255,7 @@ async function boot(): Promise<void> {
     if (keys.has("d") || keys.has("arrowright")) cam.x -= pan;
     if (sim) {
       if (!paused) sim.update(dt);
+      drainEvents(sim);
       render(ctx, sim, cam, rs, now / 1000);
       for (const id of rs.selected) if ((sim.byId(id)?.hp ?? 0) <= 0) rs.selected.delete(id);
       updateHud();

@@ -22,7 +22,8 @@ let token = loadToken();
 /** False when the API is unreachable (e.g. `vite dev` without the Worker). */
 export let online = true;
 
-async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
+/** Authenticated JSON call to the game API. Reuse this from other client modules. */
+export async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(path, {
     ...init,
     headers: {
