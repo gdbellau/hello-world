@@ -183,8 +183,7 @@ export function renderLoadout(main: HTMLElement, arg: unknown): void {
                 return h(
                   "li",
                   null,
-                  h("b", null, a.name),
-                  h("small", { class: "dim" }, `LV ${a.level} · ${lo.hp} HP`),
+                  h("span", { class: "sq-who" }, h("b", null, a.name), h("small", { class: "dim" }, `LV ${a.level} · ${lo.hp} HP`)),
                   h(
                     "label",
                     { class: "skin" },

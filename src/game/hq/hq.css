@@ -391,8 +391,12 @@ button.link:hover {
 .card-actions {
   display: flex;
   gap: 6px;
-  margin-left: auto;
   flex-wrap: wrap;
+  justify-content: flex-end;
+  width: 100%;
+}
+.screen-loadout .agent-card:not(.clickable) {
+  opacity: 0.5;
 }
 .stats {
   display: grid;
@@ -548,6 +552,8 @@ td .chip:first-child {
   margin: 28px 0 18px;
 }
 .title-screen .motd {
+  display: inline-block;
+  max-width: 100%;
   text-align: left;
 }
 .logo {
@@ -991,10 +997,10 @@ td .chip:first-child {
 }
 .squad-list li {
   counter-increment: sq;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 8px;
   padding: 6px 8px;
   background: rgba(43, 35, 112, 0.35);
   border-left: 3px solid var(--cyan);
@@ -1004,13 +1010,20 @@ td .chip:first-child {
   color: var(--dim);
   font-size: 11px;
 }
-.squad-list li b {
+.sq-who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 10px;
+  min-width: 0;
+}
+.sq-who b {
   letter-spacing: 0.12em;
 }
 .squad-list .skin {
-  margin-left: auto;
   font-size: 11px;
   color: var(--dim);
+  white-space: nowrap;
 }
 .squad-list select {
   font: inherit;
@@ -1106,9 +1119,6 @@ td .chip:first-child {
   }
   .share {
     align-items: flex-start;
-  }
-  .card-actions {
-    margin-left: 0;
   }
 }
 @media (prefers-reduced-motion: reduce) {
