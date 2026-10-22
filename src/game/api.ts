@@ -1,3 +1,4 @@
+import type { AgentStatus, CorpState } from "../../shared/corp";
 import { defaultSettings, type MissionType, type SettingsMap } from "../../shared/settings";
 
 const TOKEN_KEY = "cabal.token";
@@ -81,6 +82,90 @@ export async function completeMission(
 ): Promise<{ outcome: string; reward: number; stealth: boolean } | null> {
   try {
     return await call("/api/missions/complete", { method: "POST", body: JSON.stringify({ runId, outcome, stealth }) });
+  } catch {
+    return null;
+  }
+}
+
+// --- Corp meta-game ---------------------------------------------------------
+
+export type { CorpState } from "../../shared/corp";
+
+/** Refreshes the player profile (entitlements can change after a purchase). */
+export async function getMe(): Promise<Me | null> {
+  if (!online) return null;
+  try {
+    return await call<Me>("/api/me");
+  } catch {
+    return null;
+  }
+}
+
+/** Corp state; seeds the starting roster on first call. Null when offline. */
+export async function getCorp(): Promise<CorpState | null> {
+  if (!online) return null;
+  try {
+    return await call<CorpState>("/api/corp");
+  } catch {
+    return null;
+  }
+}
+
+/** Corp mutation. Throws an Error with the server's message on rejection. */
+async function corpPost<T = CorpState>(path: string, body: unknown): Promise<T> {
+  return call<T>(path, { method: "POST", body: JSON.stringify(body) });
+}
+
+export const renameCorp = (name: string) => corpPost("/api/corp/name", { name });
+export const recruitAgent = (cls?: string) => corpPost<CorpState & { recruited: string }>("/api/corp/recruit", { cls });
+export const dismissAgent = (agentId: string) => corpPost("/api/corp/dismiss", { agentId });
+export const healAgent = (agentId: string) => corpPost("/api/corp/heal", { agentId });
+export const installAugment = (agentId: string, augmentId: string) => corpPost("/api/corp/augment", { agentId, augmentId });
+export const removeAugment = (agentId: string, slot: string) => corpPost("/api/corp/augment/remove", { agentId, slot });
+export const startResearch = (projectId: string) => corpPost("/api/corp/research", { projectId });
+
+/** Starts a run with a squad. Throws with the server's reason (locked contract, injured agent...). */
+export async function startRun(missionId: string, agentIds: string[]): Promise<string> {
+  return (await corpPost<{ runId: string }>("/api/missions/start", { missionId, agentIds })).runId;
+}
+
+export interface AgentRunResult {
+  id: string;
+  survived: boolean;
+  kills: number;
+  hpPct: number;
+}
+
+export interface RunResult {
+  outcome: "win" | "loss" | "abort";
+  reward: number;
+  rp: number;
+  intel: number;
+  stealth: boolean;
+  firstClear: boolean;
+  agents: {
+    id: string;
+    name: string;
+    survived: boolean;
+    kills: number;
+    xp_gained: number;
+    level: number;
+    leveled_up: boolean;
+    status: AgentStatus;
+    injured_until: number;
+  }[];
+  corp: CorpState;
+}
+
+/** Reports a run with per-agent results. Null if the server couldn't be reached. */
+export async function completeRun(
+  runId: string,
+  outcome: "win" | "loss" | "abort",
+  stealth: boolean,
+  agents: AgentRunResult[],
+): Promise<RunResult | null> {
+  try {
+    return await corpPost<RunResult>("/api/missions/complete", { runId, outcome, stealth, agents });
   } catch {
     return null;
   }

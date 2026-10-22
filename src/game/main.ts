@@ -1,8 +1,9 @@
 import "./style.css";
-import { completeMission, loadConfig, online, startMission, startSession, type Me } from "./api";
+import type { SettingsMap } from "../../shared/settings";
+import { completeRun, loadConfig, online, startSession, type AgentRunResult, type RunResult } from "./api";
 import { sfx } from "./audio";
-import { screenToWorld, worldToScreen, type Vec } from "./iso";
-import { loadMission, MISSION_SOURCES } from "./missions";
+import { initFlow, setMissionMusic, showDebrief, type LaunchRequest } from "./hq/flow";
+import { dist, screenToWorld, worldToScreen, type Vec } from "./iso";
 import { render, type Camera, type RenderState } from "./render";
 import { Sim } from "./sim";
 
@@ -15,9 +16,9 @@ const rs: RenderState = { selected: new Set(), hoverTile: null, dragBox: null };
 const keys = new Set<string>();
 let sim: Sim | null = null;
 let paused = false;
-let runId: string | null = null;
-let me: Me | null = null;
-let reported = false;
+let cfg: SettingsMap = {};
+/** The deployed run: squad ids in spawn order, kill tally per squad slot. */
+let run: { req: LaunchRequest; kills: number[]; aborted: boolean; reported: boolean } | null = null;
 
 function resize(): void {
   const dpr = window.devicePixelRatio || 1;
@@ -180,69 +181,130 @@ function showModal(html: string, actions: { label: string; onClick: () => void }
   m.hidden = false;
 }
 
+/** Squad-ordered agent entities (spawn order = squad order). */
+const squadEntities = (s: Sim) => s.entities.filter((e) => e.kind === "agent");
+
 function drainEvents(s: Sim): void {
   for (const ev of s.events.splice(0)) {
     if (ev.type === "shot") sfx(ev.hostile ? "shot_hostile" : "shot");
     else if (ev.type === "takedown") sfx("takedown");
     else if (ev.type === "detect") sfx("detect");
-    else if (ev.type === "alarm") sfx("alarm");
-    else if (ev.type === "hack") sfx("hack");
+    else if (ev.type === "alarm") {
+      sfx("alarm");
+      setMissionMusic("combat");
+    } else if (ev.type === "hack") sfx("hack");
     else if (ev.type === "outcome") sfx(ev.outcome);
+    else if (ev.type === "death" && ev.kind !== "agent") creditKill(s, ev.id);
   }
+}
+
+/** The sim doesn't name the killer: credit the agent ordered to attack, else the nearest one. */
+function creditKill(s: Sim, victimId: number): void {
+  if (!run) return;
+  const victim = s.byId(victimId);
+  const squad = squadEntities(s);
+  let best = squad.findIndex((a) => a.hp > 0 && a.attackId === victimId);
+  if (best < 0 && victim) {
+    let bestD = Infinity;
+    squad.forEach((a, i) => {
+      const d = dist(a.pos, victim.pos);
+      if (a.hp > 0 && d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    });
+  }
+  if (best >= 0) run.kills[best] = (run.kills[best] ?? 0) + 1;
 }
 
 // --- Game flow --------------------------------------------------------------
 
-async function deploy(cfg: Awaited<ReturnType<typeof loadConfig>>): Promise<void> {
-  const mission = loadMission(MISSION_SOURCES[0]!.id);
-  sim = new Sim(mission, cfg);
+function launch(req: LaunchRequest): void {
+  // squad_size is raised to the squad we were handed (R&D can grow it past the base setting).
+  sim = new Sim(req.mission, { ...cfg, squad_size: req.squad.length }, req.squad);
+  run = { req, kills: req.squad.map(() => 0), aborted: false, reported: false };
   paused = false;
-  reported = false;
   rs.selected = new Set(sim.agents.map((a) => a.id));
-  centreOn(mission.agentSpawns[0]!);
+  centreOn(req.mission.agentSpawns[0]!);
   $("#modal").hidden = true;
   $("#hud").hidden = false;
-  runId = await startMission(mission.id, mission.type);
+  delete $("#roster").dataset.key;
+  setMissionMusic("stealth");
   updateHud();
 }
 
-async function finish(cfg: Awaited<ReturnType<typeof loadConfig>>): Promise<void> {
-  if (!sim || reported) return;
-  reported = true;
-  const outcome = sim.outcome!;
-  const stealth = !sim.alarm;
-  const result = runId ? await completeMission(runId, outcome, stealth) : null;
-  if (result) me = me ? { ...me, credits: me.credits + result.reward } : me;
-  const reward = result ? `<p>Payment received: <b>¥${result.reward.toLocaleString()}</b>${result.stealth ? " (ghost bonus)" : ""}</p>` : "";
-  showModal(
-    outcome === "win"
-      ? `<h1 class="win">CONTRACT FULFILLED</h1><p>Mission time ${fmtTime(sim.time)}.${stealth ? " No alarms raised." : ""}</p>${reward}`
-      : `<h1 class="loss">CONTRACT FAILED</h1><p>${sim.outcomeReason}</p>`,
-    [{ label: "REDEPLOY", onClick: () => void deploy(cfg) }],
-  );
+function confirmAbort(): void {
+  if (!sim || sim.outcome || !run) return;
+  const wasPaused = paused;
+  paused = true;
+  showModal(`<h1 class="loss">ABORT?</h1><p>Pull the squad out. The contract is forfeited; injuries still count.</p>`, [
+    {
+      label: "ABORT CONTRACT",
+      onClick: () => {
+        $("#modal").hidden = true;
+        if (run) run.aborted = true;
+        void finish();
+      },
+    },
+    {
+      label: "CONTINUE",
+      onClick: () => {
+        $("#modal").hidden = true;
+        paused = wasPaused;
+      },
+    },
+  ]);
+}
+$("#abort").addEventListener("click", () => {
+  sfx("ui_click");
+  confirmAbort();
+});
+
+async function finish(): Promise<void> {
+  const s = sim;
+  const r = run;
+  if (!s || !r || r.reported) return;
+  r.reported = true;
+  const outcome = r.aborted ? "abort" : s.outcome!;
+  const stealth = !s.alarm;
+  const ents = squadEntities(s);
+  const local = r.req.agentIds.map((id, i) => {
+    const e = ents[i];
+    return {
+      id,
+      name: e?.name ?? r.req.squad[i]?.name ?? "?",
+      survived: e ? e.hp > 0 : true,
+      kills: r.kills[i] ?? 0,
+      hpPct: e ? Math.round((100 * Math.max(0, e.hp)) / e.maxHp) : 100,
+    };
+  });
+  const report: AgentRunResult[] = local.map(({ id, survived, kills, hpPct }) => ({ id, survived, kills, hpPct }));
+  const pending: Promise<RunResult | null> = r.req.runId ? completeRun(r.req.runId, outcome, stealth, report) : Promise.resolve(null);
+  // Let the final moment of the mission land before the debrief.
+  const [result] = await Promise.all([pending, new Promise((res) => setTimeout(res, r.aborted ? 0 : 1400))]);
+  sim = null;
+  run = null;
+  rs.selected.clear();
+  $("#hud").hidden = true;
+  $("#modal").hidden = true;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  showDebrief({
+    missionId: r.req.mission.id,
+    missionName: r.req.mission.name,
+    outcome,
+    reason: r.aborted ? "Squad pulled out." : s.outcomeReason,
+    seconds: s.time,
+    stealth,
+    result,
+    local,
+  });
 }
 
 async function boot(): Promise<void> {
-  const cfg = await loadConfig();
-  me = await startSession();
-  const mission = loadMission(MISSION_SOURCES[0]!.id);
-  const motd = cfg.motd ? `<p class="motd">${String(cfg.motd).replace(/</g, "&lt;")}</p>` : "";
-  const corp = me ? `<p class="dim">${me.corp_name} · ¥${me.credits.toLocaleString()}</p>` : `<p class="dim">Offline mode. Progress is not saved.</p>`;
-  if (cfg.maintenance_mode) {
-    showModal(`<h1>THE CABAL</h1>${motd}<p>Systems are offline for maintenance. Try again shortly.</p>`, []);
-    return;
-  }
-  showModal(
-    `<h1>THE CABAL</h1><p class="dim">2080 // CORPORATE OPERATIONS TERMINAL</p>${motd}${corp}
-     <h2>${mission.name}</h2><p>${mission.brief}</p>
-     <ul class="help">
-       <li><b>Left-click / drag</b> select agents · <b>1-4</b> pick agent · <b>Ctrl+A</b> all</li>
-       <li><b>Right-click</b> move · <b>Right-click enemy</b> attack</li>
-       <li>Reach an unaware enemy for a <b>silent takedown</b>. Gunfire raises the alarm.</li>
-       <li><b>Space</b> pause · <b>WASD / arrows</b> pan camera</li>
-     </ul>`,
-    [{ label: "DEPLOY SQUAD", onClick: () => void deploy(cfg) }],
-  );
+  cfg = await loadConfig();
+  const me = await startSession();
+  await initFlow(cfg, me, launch);
 
   let last = performance.now();
   const frame = (now: number) => {
@@ -259,7 +321,7 @@ async function boot(): Promise<void> {
       render(ctx, sim, cam, rs, now / 1000);
       for (const id of rs.selected) if ((sim.byId(id)?.hp ?? 0) <= 0) rs.selected.delete(id);
       updateHud();
-      if (sim.outcome) void finish(cfg);
+      if (sim.outcome) void finish();
     }
     requestAnimationFrame(frame);
   };
