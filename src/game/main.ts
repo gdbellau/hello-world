@@ -1,7 +1,7 @@
 import "./style.css";
 import { completeMission, loadConfig, online, startMission, startSession, type Me } from "./api";
 import { screenToWorld, worldToScreen, type Vec } from "./iso";
-import { parseMission } from "./map";
+import { loadMission, MISSION_SOURCES } from "./missions";
 import { render, type Camera, type RenderState } from "./render";
 import { Sim } from "./sim";
 
@@ -184,7 +184,7 @@ function showModal(html: string, actions: { label: string; onClick: () => void }
 // --- Game flow --------------------------------------------------------------
 
 async function deploy(cfg: Awaited<ReturnType<typeof loadConfig>>): Promise<void> {
-  const mission = parseMission();
+  const mission = loadMission(MISSION_SOURCES[0]!.id);
   sim = new Sim(mission, cfg);
   paused = false;
   reported = false;
@@ -215,7 +215,7 @@ async function finish(cfg: Awaited<ReturnType<typeof loadConfig>>): Promise<void
 async function boot(): Promise<void> {
   const cfg = await loadConfig();
   me = await startSession();
-  const mission = parseMission();
+  const mission = loadMission(MISSION_SOURCES[0]!.id);
   const motd = cfg.motd ? `<p class="motd">${String(cfg.motd).replace(/</g, "&lt;")}</p>` : "";
   const corp = me ? `<p class="dim">${me.corp_name} · ¥${me.credits.toLocaleString()}</p>` : `<p class="dim">Offline mode. Progress is not saved.</p>`;
   if (cfg.maintenance_mode) {

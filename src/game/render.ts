@@ -1,5 +1,6 @@
 import { TILE_H, TILE_W, worldToScreen, type Vec } from "./iso";
 import { Tile } from "./map";
+import { drawObject } from "./render-objects";
 import type { Entity, Sim } from "./sim";
 
 const WALL_H = 44;
@@ -194,6 +195,10 @@ function drawCone(ctx: CanvasRenderingContext2D, sim: Sim, g: Entity): void {
 }
 
 function drawEntity(ctx: CanvasRenderingContext2D, sim: Sim, e: Entity, selected: boolean, t: number): void {
+  if (e.kind !== "agent" && e.kind !== "guard" && e.kind !== "target") {
+    drawObject(ctx, sim, e, t);
+    return;
+  }
   const s = worldToScreen(e.pos.x, e.pos.y);
   const color = e.kind === "agent" ? C.agent : e.kind === "guard" ? C.guard : C.target;
 

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { defaultSettings } from "../shared/settings";
 import { screenToWorld, worldToScreen } from "../src/game/iso";
-import { parseMission, Tile } from "../src/game/map";
+import { Tile } from "../src/game/map";
+import { loadMission, MISSION_SOURCES } from "../src/game/missions";
 import { Sim } from "../src/game/sim";
 
 describe("iso projection", () => {
@@ -13,8 +14,20 @@ describe("iso projection", () => {
   });
 });
 
+describe("mission registry", () => {
+  it("every mission builds, has unique id, and is reachable from spawn", () => {
+    const ids = MISSION_SOURCES.map((m) => m.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const src of MISSION_SOURCES) {
+      const m = loadMission(src.id);
+      expect(m.agentSpawns.length).toBeGreaterThanOrEqual(4);
+      expect(m.map.findPath(m.agentSpawns[0]!, m.target.pos)).not.toBeNull();
+    }
+  });
+});
+
 describe("mission map", () => {
-  const m = parseMission();
+  const m = loadMission("neon-tower-01");
 
   it("parses a rectangular map with spawns, guards, target and extraction", () => {
     expect(m.map.tiles.length).toBe(m.map.width * m.map.height);
@@ -50,7 +63,7 @@ function tick(sim: Sim, seconds: number) {
 describe("simulation", () => {
   it("silent takedown of an unaware target does not raise the alarm", () => {
     const cfg = { ...defaultSettings(), guard_vision_range: 0.01 }; // guards effectively blind
-    const sim = new Sim(parseMission(), cfg);
+    const sim = new Sim(loadMission("neon-tower-01"), cfg);
     const agent = sim.agents[0]!;
     sim.orderAttack([agent.id], sim.target.id);
     tick(sim, 30);
@@ -59,7 +72,7 @@ describe("simulation", () => {
   });
 
   it("a guard that watches an agent long enough raises the alarm", () => {
-    const sim = new Sim(parseMission(), defaultSettings());
+    const sim = new Sim(loadMission("neon-tower-01"), defaultSettings());
     const guard = sim.entities.find((e) => e.kind === "guard")!;
     const agent = sim.agents[0]!;
     guard.patrol = [{ ...guard.pos }];
@@ -77,7 +90,7 @@ describe("simulation", () => {
   });
 
   it("wins when the target is dead and all agents stand on extraction", () => {
-    const sim = new Sim(parseMission(), defaultSettings());
+    const sim = new Sim(loadMission("neon-tower-01"), defaultSettings());
     sim.target.hp = 0;
     const ex = sim.extractTiles();
     sim.agents.forEach((a, i) => (a.pos = { ...ex[i % ex.length]! }));
@@ -86,14 +99,14 @@ describe("simulation", () => {
   });
 
   it("loses when every agent is dead", () => {
-    const sim = new Sim(parseMission(), defaultSettings());
+    const sim = new Sim(loadMission("neon-tower-01"), defaultSettings());
     for (const a of sim.agents) a.hp = 0;
     sim.update(0.01);
     expect(sim.outcome).toBe("loss");
   });
 
   it("respects squad_size from config", () => {
-    const sim = new Sim(parseMission(), { ...defaultSettings(), squad_size: 2 });
+    const sim = new Sim(loadMission("neon-tower-01"), { ...defaultSettings(), squad_size: 2 });
     expect(sim.agents.length).toBe(2);
   });
 });

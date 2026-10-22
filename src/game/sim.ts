@@ -3,9 +3,26 @@
 
 import type { SettingsMap } from "../../shared/settings";
 import { dist, type Vec } from "./iso";
-import { Tile, type MissionDef, type TileMap } from "./map";
+import { Tile, type TileMap } from "./map";
+import type { MissionDef } from "./missions";
 
 export type Kind = "agent" | "guard" | "target";
+
+export type AgentClass = "ghost" | "razor" | "decker" | "bruiser";
+
+/** What the corp meta-game hands to a mission: one entry per deployed agent. */
+export interface AgentLoadout {
+  name: string;
+  cls: AgentClass;
+  /** Cosmetic skin id; "default" unless the player owns a skin entitlement. */
+  skin: string;
+  hp: number;
+  speed: number;
+  /** Multiplier on agent_weapon_damage. */
+  damageMul?: number;
+  /** Multiplier on guard detection time (higher = stealthier). */
+  stealthMul?: number;
+}
 
 export interface Entity {
   id: number;
@@ -19,6 +36,10 @@ export interface Entity {
   path: Vec[];
   cooldown: number;
   // Agents
+  cls?: AgentClass;
+  skin?: string;
+  damageMul?: number;
+  stealthMul?: number;
   attackId?: number;
   // Guards / target
   patrol?: Vec[];
@@ -37,7 +58,24 @@ export interface Shot {
 
 export type Outcome = "win" | "loss" | null;
 
-const AGENT_NAMES = ["VIPER", "GHOST", "RAZOR", "HEX", "BRICK", "NOVA"];
+const DEFAULT_SQUAD: { name: string; cls: AgentClass }[] = [
+  { name: "VIPER", cls: "razor" },
+  { name: "GHOST", cls: "ghost" },
+  { name: "HEX", cls: "decker" },
+  { name: "BRICK", cls: "bruiser" },
+  { name: "NOVA", cls: "ghost" },
+  { name: "KATANA", cls: "razor" },
+];
+
+/** Squad used when no roster is supplied (offline play, tests). */
+export function defaultLoadout(cfg: SettingsMap): AgentLoadout[] {
+  return DEFAULT_SQUAD.slice(0, Number(cfg.squad_size)).map((a) => ({
+    ...a,
+    skin: "default",
+    hp: Number(cfg.agent_hp),
+    speed: Number(cfg.agent_speed),
+  }));
+}
 const MELEE_RANGE = 1.25;
 
 export class Sim {
@@ -50,12 +88,21 @@ export class Sim {
   outcome: Outcome = null;
   private nextId = 1;
 
-  constructor(mission: MissionDef, readonly cfg: SettingsMap) {
+  constructor(
+    mission: MissionDef,
+    readonly cfg: SettingsMap,
+    squad: AgentLoadout[] = defaultLoadout(cfg),
+  ) {
     this.mission = mission;
     this.map = mission.map;
-    const n = Math.min(Number(cfg.squad_size), mission.agentSpawns.length);
+    const n = Math.min(Number(cfg.squad_size), squad.length, mission.agentSpawns.length);
     for (let i = 0; i < n; i++) {
-      this.spawn("agent", AGENT_NAMES[i] ?? `AGENT ${i + 1}`, mission.agentSpawns[i]!, Number(cfg.agent_hp), Number(cfg.agent_speed));
+      const l = squad[i]!;
+      const e = this.spawn("agent", l.name, mission.agentSpawns[i]!, l.hp, l.speed);
+      e.cls = l.cls;
+      e.skin = l.skin;
+      e.damageMul = l.damageMul ?? 1;
+      e.stealthMul = l.stealthMul ?? 1;
     }
     mission.guards.forEach((g, i) => {
       const e = this.spawn("guard", `GUARD ${i + 1}`, g.patrol[0]!, Number(cfg.guard_hp), Number(cfg.guard_speed));
@@ -189,7 +236,7 @@ export class Sim {
       }
       if (this.alarm && this.canSee(e.pos, ordered.pos, range)) {
         e.path = [];
-        if (e.cooldown === 0) this.fire(e, ordered, Number(this.cfg.agent_weapon_damage), Number(this.cfg.agent_fire_cooldown), false);
+        if (e.cooldown === 0) this.fire(e, ordered, Number(this.cfg.agent_weapon_damage) * (e.damageMul ?? 1), Number(this.cfg.agent_fire_cooldown), false);
         return;
       }
       if (!e.path.length || (e.repathIn = (e.repathIn ?? 0) - dt) <= 0) {
@@ -201,7 +248,7 @@ export class Sim {
     } else if (this.alarm && e.cooldown === 0) {
       // Return fire at the nearest visible hostile once things are loud.
       const tgt = this.nearestVisible(e, this.hostiles, range);
-      if (tgt) this.fire(e, tgt, Number(this.cfg.agent_weapon_damage), Number(this.cfg.agent_fire_cooldown), false);
+      if (tgt) this.fire(e, tgt, Number(this.cfg.agent_weapon_damage) * (e.damageMul ?? 1), Number(this.cfg.agent_fire_cooldown), false);
     }
     this.step(e, dt);
   }
@@ -231,8 +278,10 @@ export class Sim {
   private updateGuard(g: Entity, dt: number): void {
     const range = Number(this.cfg.guard_vision_range);
     if (!this.alarm) {
-      const seen = this.agents.some((a) => this.inVisionCone(g, a.pos));
-      g.detect = seen ? (g.detect ?? 0) + dt : Math.max(0, (g.detect ?? 0) - dt * 0.5);
+      // Stealthier agents fill the detection meter more slowly.
+      const seen = this.agents.filter((a) => this.inVisionCone(g, a.pos));
+      const rate = seen.length ? Math.max(...seen.map((a) => 1 / (a.stealthMul ?? 1))) : 0;
+      g.detect = rate ? (g.detect ?? 0) + dt * rate : Math.max(0, (g.detect ?? 0) - dt * 0.5);
       if (g.detect >= Number(this.cfg.detection_time)) this.alarm = true;
       // Bodies on the floor in view also trip the alarm.
       if (this.hostiles.length < this.entities.filter((e) => e.kind !== "agent").length) {
