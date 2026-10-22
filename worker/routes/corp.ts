@@ -101,7 +101,8 @@ export async function loadResearch(env: Env, playerId: string): Promise<Set<stri
 
 export async function loadCleared(env: Env, playerId: string): Promise<Set<string>> {
   const { results } = await env.DB.prepare(
-    "SELECT DISTINCT mission_id FROM mission_runs WHERE player_id = ?1 AND outcome = 'win'",
+    `SELECT DISTINCT r.mission_id FROM mission_runs r JOIN players p ON p.id = r.player_id
+     WHERE r.player_id = ?1 AND r.outcome = 'win' AND r.started_at >= p.progress_reset_at`,
   ).bind(playerId).all<{ mission_id: string }>();
   return new Set(results.map((r) => r.mission_id));
 }

@@ -24,6 +24,9 @@
     "ACCESS_TEAM_DOMAIN": "your-team.cloudflareaccess.com",
     "ACCESS_AUD": ""
   },
+  // Nightly DAU rollup and player_days cleanup (worker/cron.ts).
+  "triggers": { "crons": ["17 0 * * *"] },
   "observability": { "enabled": true }
-  // Secrets (set with `wrangler secret put`): SESSION_SECRET, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+  // Secrets (set with `wrangler secret put`): SESSION_SECRET, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, RESEND_API_KEY.
+  // Plain vars: EMAIL_FROM, APP_ORIGIN (see docs/SETUP.md).
 }

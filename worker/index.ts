@@ -1,4 +1,5 @@
 import { requireAdmin } from "./auth";
+import { scheduled } from "./cron";
 import type { Env } from "./env";
 import { HttpError, json } from "./http";
 import { match, type AdminCtx, type Ctx, type Route } from "./router";
@@ -48,4 +49,5 @@ export default {
       return json({ error: "Internal error" }, { status: 500 });
     }
   },
+  scheduled,
 } satisfies ExportedHandler<Env>;

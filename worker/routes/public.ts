@@ -1,6 +1,6 @@
 import { publicSettings } from "../../shared/settings";
 import { requirePlayer } from "../auth";
-import { signPlayerToken, verifyPlayerToken } from "../crypto";
+import { signPlayerToken, verifyPlayerTokenClaims } from "../crypto";
 import { bumpStat, loadSettings, nowMs, today } from "../db";
 import { json, readJson } from "../http";
 import type { Route } from "../router";
@@ -19,10 +19,14 @@ export const publicRoutes: Route[] = [
     path: "/api/session",
     async handler({ req, env }) {
       const body = await readJson<{ token?: string }>(req).catch(() => ({}) as { token?: string });
-      const existing = body.token ? await verifyPlayerToken(env.SESSION_SECRET, body.token) : null;
-      if (existing) {
+      const claims = body.token ? await verifyPlayerTokenClaims(env.SESSION_SECRET, body.token) : null;
+      const existing = claims?.id;
+      if (claims && existing) {
+        // A token revoked by logout/merge (older token_version) falls through to a fresh player.
         const [r] = await env.DB.batch([
-          env.DB.prepare("UPDATE players SET last_seen_at = ?1 WHERE id = ?2").bind(nowMs(), existing),
+          env.DB.prepare(
+            "UPDATE players SET last_seen_at = ?1 WHERE id = ?2 AND COALESCE(token_version, 0) = ?3 AND merged_into IS NULL",
+          ).bind(nowMs(), existing, claims.version),
           // DAU: at most one row write per player per day (ignored after the first).
           env.DB.prepare("INSERT OR IGNORE INTO player_days (day, player_id) SELECT ?1, id FROM players WHERE id = ?2").bind(today(), existing),
         ]);

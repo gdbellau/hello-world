@@ -187,7 +187,14 @@ const routes: Route<AdminCtx>[] = [
           const s = await loadSettings(env);
           const credits = Number(s.starting_credits);
           await env.DB.batch([
-            env.DB.prepare("UPDATE players SET credits = ?1 WHERE id = ?2").bind(credits, id),
+            // Wipes the corp (roster, research, campaign clears) but keeps purchases,
+            // entitlements and mission history for stats.
+            env.DB.prepare(
+              `UPDATE players SET credits = ?1, research_points = 0, intel = 0, roster_seeded = 0, progress_reset_at = ?3
+               WHERE id = ?2`,
+            ).bind(credits, id, now),
+            env.DB.prepare("DELETE FROM agents WHERE player_id = ?1").bind(id),
+            env.DB.prepare("DELETE FROM research WHERE player_id = ?1").bind(id),
             // Close any runs left open so they can't be completed for a reward later.
             env.DB.prepare("UPDATE mission_runs SET ended_at = ?1, outcome = 'abort', reward = 0 WHERE player_id = ?2 AND ended_at IS NULL").bind(now, id),
             log({ fromCredits: p.credits, toCredits: credits }),
