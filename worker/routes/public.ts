@@ -1,7 +1,7 @@
 import { publicSettings } from "../../shared/settings";
 import { requirePlayer } from "../auth";
 import { signPlayerToken, verifyPlayerToken } from "../crypto";
-import { bumpStat, loadSettings, nowMs } from "../db";
+import { bumpStat, loadSettings, nowMs, today } from "../db";
 import { json, readJson } from "../http";
 import type { Route } from "../router";
 
@@ -21,8 +21,12 @@ export const publicRoutes: Route[] = [
       const body = await readJson<{ token?: string }>(req).catch(() => ({}) as { token?: string });
       const existing = body.token ? await verifyPlayerToken(env.SESSION_SECRET, body.token) : null;
       if (existing) {
-        const r = await env.DB.prepare("UPDATE players SET last_seen_at = ?1 WHERE id = ?2").bind(nowMs(), existing).run();
-        if (r.meta.changes > 0) return json({ token: body.token, playerId: existing });
+        const [r] = await env.DB.batch([
+          env.DB.prepare("UPDATE players SET last_seen_at = ?1 WHERE id = ?2").bind(nowMs(), existing),
+          // DAU: at most one row write per player per day (ignored after the first).
+          env.DB.prepare("INSERT OR IGNORE INTO player_days (day, player_id) SELECT ?1, id FROM players WHERE id = ?2").bind(today(), existing),
+        ]);
+        if (r!.meta.changes > 0) return json({ token: body.token, playerId: existing });
       }
       const s = await loadSettings(env);
       const id = crypto.randomUUID();
@@ -33,6 +37,7 @@ export const publicRoutes: Route[] = [
           Number(s.starting_credits),
         ),
         bumpStat(env, "new_players"),
+        env.DB.prepare("INSERT OR IGNORE INTO player_days (day, player_id) VALUES (?1, ?2)").bind(today(), id),
       ]);
       return json({ token: await signPlayerToken(env.SESSION_SECRET, id), playerId: id });
     },

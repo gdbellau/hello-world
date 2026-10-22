@@ -4,21 +4,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex" />
-    <title>CABAL Admin</title>
+    <meta name="color-scheme" content="light dark" />
+    <title>CABAL Ops</title>
   </head>
   <body>
-    <header>
-      <strong>THE CABAL // ADMIN</strong>
-      <nav>
-        <button data-tab="stats" class="on">Stats</button>
-        <button data-tab="settings">Settings</button>
-        <button data-tab="products">Products</button>
-        <button data-tab="audit">Audit log</button>
+    <header class="top">
+      <div class="brand"><span class="logo" aria-hidden="true">◆</span><strong>THE CABAL</strong><span class="dim">// ops</span></div>
+      <nav class="tabs" aria-label="Sections">
+        <a href="#dashboard" data-tab="dashboard">Dashboard</a>
+        <a href="#players" data-tab="players">Players</a>
+        <a href="#settings" data-tab="settings">Settings</a>
+        <a href="#products" data-tab="products">Products</a>
+        <a href="#audit" data-tab="audit">Audit log</a>
+        <a href="#system" data-tab="system">System</a>
       </nav>
-      <span id="who"></span>
+      <div class="right">
+        <div id="ops" class="ops"></div>
+        <button type="button" id="theme" class="ghost sm"></button>
+        <span id="who" class="dim"></span>
+      </div>
     </header>
-    <main id="main"></main>
-    <div id="toast" hidden></div>
+    <main id="main" tabindex="-1"></main>
+    <div id="toast" role="status" aria-live="polite" hidden></div>
     <script type="module" src="/src/admin/main.ts"></script>
   </body>
 </html>
