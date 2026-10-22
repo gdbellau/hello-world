@@ -86,6 +86,14 @@ describe("mission content", () => {
       }
     });
 
+    it(`${src.id}: the squad is not spotted while idling at spawn`, () => {
+      const sim = new Sim(loadMission(src.id), defaultSettings());
+      tick(sim, 8);
+      expect(sim.alarm).toBe(false);
+      const spotted = sim.events.filter((e) => e.type === "detect");
+      expect(spotted).toEqual([]);
+    });
+
     it(`${src.id}: simulates a minute without errors and gives objective text`, () => {
       const sim = new Sim(loadMission(src.id), defaultSettings());
       expect(sim.objectiveText().length).toBeGreaterThan(0);
@@ -418,5 +426,16 @@ describe("contracts with main.ts", () => {
     sim.raiseAlarm();
     tick(sim, 5);
     expect(sim.entities.filter((e) => e.kind === "civilian" && e.hp <= 0).length).toBe(0);
+  });
+
+  it("right-clicking an opened door walks there instead of doing nothing", () => {
+    const sim = new Sim(loadMission("kowloon-vault-02"), quiet());
+    const door = sim.entities.find((e) => e.kind === "door")!;
+    door.done = true;
+    sim.map.set(Math.floor(door.pos.x), Math.floor(door.pos.y), Tile.Floor);
+    const a = sim.agents[0]!;
+    sim.orderAttack([a.id], door.id);
+    expect(a.attackId).toBeUndefined();
+    expect(a.path.length).toBeGreaterThan(0);
   });
 });

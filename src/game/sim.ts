@@ -336,7 +336,8 @@ export class Sim {
    */
   orderAttack(ids: number[], targetId: number): void {
     const t = this.byId(targetId);
-    if (t && INTERACTIVE.has(t.kind) && !this.isInteractive(t)) return;
+    // An opened door / hacked terminal / carried package is just a place to walk to.
+    if (t && INTERACTIVE.has(t.kind) && !this.isInteractive(t)) return this.orderMove(ids, t.pos);
     for (const id of ids) {
       const e = this.byId(id);
       if (e && e.hp > 0 && e.kind === "agent") {
