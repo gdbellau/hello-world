@@ -1,0 +1,192 @@
+:root {
+  --bg: #f7f7fb;
+  --surface: #ffffff;
+  --text: #1c1b2e;
+  --dim: #6b6a85;
+  --line: #e3e2ee;
+  --accent: #6b2bd6;
+  --accent-text: #ffffff;
+  --bad: #c62848;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0e1c;
+    --surface: #17162a;
+    --text: #e4e3f5;
+    --dim: #9796b5;
+    --line: #2a2945;
+    --accent: #b07cff;
+    --accent-text: #0f0e1c;
+    --bad: #ff6b88;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+}
+header strong {
+  letter-spacing: 0.12em;
+}
+nav {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+nav button {
+  background: none;
+  border: 0;
+  padding: 6px 12px;
+  color: var(--dim);
+  font: inherit;
+  cursor: pointer;
+  border-radius: 6px;
+}
+nav button.on {
+  color: var(--text);
+  background: var(--bg);
+  font-weight: 600;
+}
+#who {
+  margin-left: auto;
+  color: var(--dim);
+}
+main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 8px 16px 64px;
+}
+h2 {
+  font-size: 16px;
+  margin: 28px 0 10px;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+th,
+td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  color: var(--dim);
+  font-size: 12px;
+}
+td {
+  font-variant-numeric: tabular-nums;
+}
+table.kv {
+  max-width: 420px;
+}
+.scroll {
+  overflow-x: auto;
+}
+.dim {
+  color: var(--dim);
+  font-size: 12px;
+  margin-top: 2px;
+}
+.mod {
+  color: var(--accent);
+  font-size: 12px;
+  margin-top: 2px;
+}
+.err {
+  color: var(--bad);
+}
+.tag {
+  font-size: 11px;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--dim);
+}
+.settings td.in {
+  width: 240px;
+}
+.settings td.btns {
+  width: 150px;
+  white-space: nowrap;
+}
+input,
+select,
+textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  width: 100%;
+}
+input[type="checkbox"] {
+  width: auto;
+}
+textarea {
+  margin-top: 4px;
+  resize: vertical;
+}
+.products input.num {
+  width: 80px;
+}
+.products input.cur {
+  width: 56px;
+}
+button {
+  font: inherit;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+  cursor: pointer;
+}
+button.ghost {
+  background: none;
+  color: var(--accent);
+  margin-left: 6px;
+}
+#toast {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--text);
+  color: var(--bg);
+}
+#toast.bad {
+  background: var(--bad);
+}
+@media (max-width: 700px) {
+  .settings td.in,
+  .settings td.btns {
+    width: auto;
+  }
+  .settings tr {
+    display: grid;
+  }
+}

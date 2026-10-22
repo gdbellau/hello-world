@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>THE CABAL</title>
+    <meta name="description" content="2080. Run a megacorp. Field a squad of cyberpunk agents." />
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <div id="hud" hidden>
+      <div class="top">
+        <span id="objective"></span>
+        <span id="alarm" class="pill green">UNDETECTED</span>
+        <span id="clock">00:00</span>
+      </div>
+      <div id="paused" hidden>PAUSED · SPACE TO RESUME</div>
+      <div id="roster"></div>
+    </div>
+    <div id="modal" hidden>
+      <div class="panel">
+        <div class="body"></div>
+        <div class="actions"></div>
+      </div>
+    </div>
+    <script type="module" src="/src/game/main.ts"></script>
+  </body>
+</html>

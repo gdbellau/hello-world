@@ -1,0 +1,7 @@
+# Copy to .dev.vars for `wrangler dev`. Never commit .dev.vars.
+SESSION_SECRET=change-me-to-a-long-random-string
+# Lets you open /admin on localhost without Cloudflare Access.
+DEV_ADMIN_EMAIL=you@example.com
+# Stripe test-mode keys (optional locally)
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...

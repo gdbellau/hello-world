@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>CABAL Admin</title>
+  </head>
+  <body>
+    <header>
+      <strong>THE CABAL // ADMIN</strong>
+      <nav>
+        <button data-tab="stats" class="on">Stats</button>
+        <button data-tab="settings">Settings</button>
+        <button data-tab="products">Products</button>
+        <button data-tab="audit">Audit log</button>
+      </nav>
+      <span id="who"></span>
+    </header>
+    <main id="main"></main>
+    <div id="toast" hidden></div>
+    <script type="module" src="/src/admin/main.ts"></script>
+  </body>
+</html>
