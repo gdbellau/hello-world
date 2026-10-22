@@ -58,6 +58,10 @@ canvas {
   color: var(--green);
   border: 1px solid var(--green);
 }
+.pill.yellow {
+  color: var(--yellow);
+  border: 1px solid var(--yellow);
+}
 .pill.red {
   color: #fff;
   background: var(--red);

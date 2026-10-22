@@ -1,6 +1,7 @@
 import "./style.css";
 import type { SettingsMap } from "../../shared/settings";
 import { completeRun, loadConfig, online, startSession, type AgentRunResult, type RunResult } from "./api";
+import { initAccountFlow } from "./account";
 import { sfx } from "./audio";
 import { initFlow, setMissionMusic, showDebrief, type LaunchRequest } from "./hq/flow";
 import { dist, screenToWorld, worldToScreen, type Vec } from "./iso";
@@ -136,8 +137,9 @@ function updateHud(): void {
   if (!sim) return;
   $("#objective").textContent = `◆ ${sim.objectiveText()}`;
   const alarm = $("#alarm");
-  alarm.textContent = sim.alarm ? "ALARM" : "UNDETECTED";
-  alarm.className = sim.alarm ? "pill red" : "pill green";
+  const state = sim.alertState();
+  alarm.textContent = state === "alarmed" ? "ALARM" : state === "suspicious" ? "SUSPICIOUS" : "UNDETECTED";
+  alarm.className = `pill ${state === "alarmed" ? "red" : state === "suspicious" ? "yellow" : "green"}`;
   $("#clock").textContent = fmtTime(sim.time);
   $("#paused").hidden = !paused;
   // Only rebuild the roster when it changes, or clicks get eaten mid-frame.
@@ -303,6 +305,8 @@ async function finish(): Promise<void> {
 
 async function boot(): Promise<void> {
   cfg = await loadConfig();
+  // Consumes ?login= / ?purchase= return links; may swap the session token, so it runs before startSession.
+  await initAccountFlow();
   const me = await startSession();
   await initFlow(cfg, me, launch);
 
